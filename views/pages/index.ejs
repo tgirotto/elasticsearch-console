@@ -51,6 +51,9 @@
               <button type="submit" class="btn btn-primary">Index</button>
             </form>
             </div>
+            <div class="col-md-4">
+              <div id="console" style="overflow-y: scroll; height:300px; border: 1px solid black;">
+            </div>
           </div>
         </main>
         <br>
@@ -60,9 +63,12 @@
         <script src="/socket.io/socket.io.js"></script>
         <script>
           var socket = io();
-          socket.on('log', function(msg){
-            //$('#messages').append($('<li>').text(msg));
-            console.log(msg);
+          socket.on('log', function(obj){
+            console.log(obj);
+            document.getElementById('console').innerHTML += obj.msg + '<br>' ;
+
+            var element = document.getElementById("console");
+            element.scrollTop = element.scrollHeight;
           });
         </script>
         <script type='text/javascript'>

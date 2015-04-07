@@ -28,9 +28,6 @@ app.get('/', function(req, res) {
 	res.render('index.ejs');
 });
 
-/*
-	
-*/
 app.post('/index', function(req, res) {
 	console.log(req.body);
 	io.emit('log', {"msg" : "Initializing..."});
@@ -50,6 +47,14 @@ function initialize(callback) {
 	}, function(error, response, status) {
 		callback();
 	});
+};
+
+function flushNodes() {
+
+};
+
+function createNode() {
+
 };
 /*******************************************************************************/
 app.use(function(req, res, next) {
