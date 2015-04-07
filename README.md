@@ -1,2 +1,2 @@
 # ustmarketplace
-A simple marketplace in Node JS and Bootstrap.
+A testing console for elasticsearch.
