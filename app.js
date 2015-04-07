@@ -1,14 +1,16 @@
 var fs = require('fs');
 var express = require('express');
+var app = express();
 var logger = require('morgan');
 var bodyParser = require('body-parser');
 var elastic = require('elasticsearch');
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
 
 var SERVER_PORT = 3000;
 var ES_PORT = ':9200';
 var HOST = 'localhost';
 
-var app = express();
 var client = new elastic.Client({host: HOST + ES_PORT});
 
 app.use(logger('dev'));
@@ -26,15 +28,29 @@ app.get('/', function(req, res) {
 	res.render('index.ejs');
 });
 
-app.get('/run', function(req, res) {
-	console.log(req.query);
-	//res.render('index.ejs');
-	res.send('ok');
+/*
+	
+*/
+app.post('/index', function(req, res) {
+	console.log(req.body);
+	io.emit('log', {"msg" : "Initializing..."});
+	res.json('ok');
 });
 
 /*******************************************************************************/
+function initialize(callback) {
+	client	= new elastic.Client({
+  		host: HOST
+	});
 
-
+	client.indices.delete({
+		timeout: 30000,
+		masterTimeout: 30000,
+		index: INDEX
+	}, function(error, response, status) {
+		callback();
+	});
+};
 /*******************************************************************************/
 app.use(function(req, res, next) {
     var err = new Error('Not Found');
@@ -47,6 +63,6 @@ app.use(function(err, req, res, next) {
     console.log(err.message);
 });
 
-var server = app.listen(SERVER_PORT, function() {
+http.listen(SERVER_PORT, function() {
 	console.log('listening on port ', SERVER_PORT);
 });

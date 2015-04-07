@@ -16,7 +16,7 @@
           <div class="row">
             <div class="col-md-4"></div>
             <div class="col-md-4">
-              <form role="form" method="get" action="/run" enctype="multipart/form-data">
+              <form id="input_form" role="form" method="post" action="/index" enctype="multipart/form-data">
               <div class="input-group">
                 <span class="input-group-addon" id="basic-addon1">Index</span>
                 <input id="index" type="text" class="form-control" name="index" aria-describedby="basic-addon1">
@@ -42,8 +42,13 @@
                 <input id="replica_shard_number" type="text" class="form-control" name="replica_shard_number" aria-describedby="basic-addon5">
               </div>
               <br>
+              <div class="input-group">
+                <span class="input-group-addon" id="basic-addon6">Content path</span>
+                <input id="content_path" type="text" class="form-control" name="content_path" aria-describedby="basic-addon6">
+              </div>
               <br>
-              <button type="submit" class="btn btn-primary">Run</button>
+              <br>
+              <button type="submit" class="btn btn-primary">Index</button>
             </form>
             </div>
           </div>
@@ -52,5 +57,34 @@
         <footer>
             <% include ../partials/footer %>
         </footer>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+          var socket = io();
+          socket.on('log', function(msg){
+            //$('#messages').append($('<li>').text(msg));
+            console.log(msg);
+          });
+        </script>
+        <script type='text/javascript'>
+          $("#input_form").submit(function(event) {
+            event.preventDefault();
+
+            var $form = $(this),
+                url = $form.attr('action');
+
+            var posting = $.post(url, { 
+              index: $('#index').val(), 
+              type: $('#type').val(), 
+              node_number :  $('#node_number').val(),
+              primary_shard_number: $('#primary_shard_number').val(), 
+              replica_shard_number :  $('#replica_shard_number').val(),
+              content_path: $('#content_path').val() 
+            } );
+
+            posting.done(function(data) {
+              console.log(data);
+            });
+          });
+        </script>
     </body>
 </html>
