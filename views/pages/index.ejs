@@ -1,0 +1,94 @@
+<!-- views/pages/index.ejs -->
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <% include ../partials/head %>
+    </head>
+    <body class="container">
+
+        <header>
+            <% include ../partials/header %>
+        </header>
+        <br>
+        <br>
+            <% include ../partials/upload %>
+            <% include ../partials/message %>
+        <main>
+          <% for(var i = 0; i < items.length; i += 4) { %>
+            <% if(i % 4 == 0) { %>
+              <div class="row">
+              <% if(items[i] != null) { %>
+                  <div class="col-sm-6 col-md-3">
+                    <div class="panel panel-default">
+                      <div class="panel-heading">
+                        <h3 class="panel-title"><%= items[i]._source.name%><span class="pull-right">$ <%=items[i]._source.price%></span></h3>
+                      </div>
+                      <div class="panel-body text-center">
+                        <img src='/img/<%=items[i]._id%>.jpg'  style="width:200px; height:150px;">
+                        <hr/>
+                        <p class="text-center"><button href="#" class="btn btn-primary" data-toggle="modal" data-target="#message" data-id='<%=items[i]._id%>'>Poke</button>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                <% } %>
+                <% if(items[i + 1] != null) { %>
+                  <div class="col-sm-6 col-md-3">
+                    <div class="panel panel-default">
+                      <div class="panel-heading">
+                        <h3 class="panel-title"><%= items[i + 1]._source.name%><span class="pull-right">$ <%=items[i + 1]._source.price%></span></h3>
+                      </div>
+                      <div class="panel-body text-center">
+                        <img src='/img/<%=items[i + 1]._id%>.jpg' style="width:200px; height:150px;">
+                        <hr/>
+                        <p class="text-center"><button href="#" class="btn btn-primary" data-toggle="modal" data-target="#message" data-id='<%=items[i + 1]._id%>'>Poke</button>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                <% } %>
+                <% if(items[i + 2] != null) { %>
+                  <div class="col-sm-6 col-md-3">
+                    <div class="panel panel-default">
+                      <div class="panel-heading">
+                        <h3 class="panel-title"><%= items[i + 2]._source.name%><span class="pull-right">$ <%=items[i + 2]._source.price%></span></h3>
+                      </div>
+                      <div class="panel-body text-center">
+                        <img src='/img/<%=items[i + 2]._id%>.jpg' style="width:200px; height:150px;">
+                        <hr/>
+                        <p class="text-center"><button href="#" class="btn btn-primary" data-toggle="modal" data-target="#message" data-id='<%=items[i + 2]._id%>'>Poke</button>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                <% } %>
+                <% if(items[i + 3] != null) { %>
+                  <div class="col-sm-6 col-md-3">
+                    <div class="panel panel-default">
+                      <div class="panel-heading">
+                        <h3 class="panel-title"><%= items[i + 3]._source.name%><span class="pull-right">$ <%=items[i + 3]._source.price%></span></h3>
+                      </div>
+                      <div class="panel-body text-center">
+                        <img src='/img/<%=items[i + 3]._id%>.jpg' style="width:200px; height:150px;">
+                        <hr/>
+                        <p class="text-center"><button href="#" class="btn btn-primary" data-toggle="modal" data-target="#message" data-id='<%=items[i + 3]._id%>'>Poke</button>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                <% } %>
+              </div>
+            <% } %>
+          <% } %>
+        </main>
+
+        <footer>
+            <% include ../partials/footer %>
+        </footer>
+    </body>
+</html>
