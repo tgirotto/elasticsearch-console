@@ -26,6 +26,12 @@ app.get('/', function(req, res) {
 	res.render('index.ejs');
 });
 
+app.get('/run', function(req, res) {
+	console.log(req.query);
+	//res.render('index.ejs');
+	res.send('ok');
+});
+
 /*******************************************************************************/
 
 
