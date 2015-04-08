@@ -51,25 +51,35 @@ app.post('/index', function(req, res) {
 	res.json('ok');
 });
 
+app.post('/kill', function(req, res) {
+	killAllNodes(function() {
+		console.log('callback...');
+	});
+});
+
 /*******************************************************************************/
 function initialize(params) {
-	flushOldNodes(NODE_DESTINATION, function() {
-		createNodeFolder(NODE_DESTINATION, function() {
-			createNode(0, params.node_number);
+	killAllNodes(function() {
+		flushOldNodes(NODE_DESTINATION, function() {
+			createNodeFolder(NODE_DESTINATION, function() {
+				createNode(0, params.node_number, function() {
+					io.emit('log', {"msg" : "Creating index"});
+				});
+			});
 		});
 	});
+};
 
-	/*client	= new elastic.Client({
-  		host: HOST
+function killAllNodes(callback) {
+	var killer = child_process.exec('pkill -f elastic', function (error, stdout, stderr) {
+		if(error)
+			io.emit('log', {"msg" : '-------->' + error.stack});
 	});
-
-	client.indices.delete({
-		timeout: 30000,
-		masterTimeout: 30000,
-		index: INDEX
-	}, function(error, response, status) {
-		callback();
-	});*/
+	
+	killer.on('exit', function (code) {
+	 	io.emit('log', {"msg" : 'Killed all nodes...'});
+	 	callback();
+	});
 };
 
 function flushOldNodes(folder, callback) {
@@ -90,7 +100,7 @@ function createNodeFolder(path, callback) {
 	});
 };
 
-function createNode(number, total) {
+function createNode(number, total, callback) {
 	ncp(NODE_SOURCE, NODE_DESTINATION + NODE_NAME + number, function (err) {
 		if(err)
 			return console.error(err);
@@ -99,15 +109,14 @@ function createNode(number, total) {
 
 			if(number == total - 1) {
 				io.emit('log', {"msg" : "All nodes created..."});
-				installMarvel(0, total);
-				//runNode(0, total);
+				installMarvel(0, total, callback);
 			} else
-				createNode(++number, total);
+				createNode(++number, total, callback);
 		}
 	});
 };
 
-function installMarvel(number, total) {
+function installMarvel(number, total, callback) {
 	var ps = child_process.exec(NODE_DESTINATION + NODE_NAME + number + '/bin/plugin -i elasticsearch/marvel/latest', function (error, stdout, stderr) {
 		if(error)
 			io.emit('log', {"msg" : '-------->' + error.stack});
@@ -117,13 +126,13 @@ function installMarvel(number, total) {
 	 	io.emit('log', {"msg" : 'Marvel installed on ' + NODE_NAME + number});
 	 	if(number == total - 1) {
 			io.emit('log', {"msg" : "Marvel installed on all nodes..."});
-			runNode(0, total);
+			runNode(0, total, callback);
 		} else
-			installMarvel(++number, total);
+			installMarvel(++number, total, callback);
 	 });
 };
 
-function runNode(number, total) {
+function runNode(number, total, callback) {
 	children[number] = (child_process.spawn('sh', [NODE_DESTINATION + NODE_NAME + 0 + '/bin/elasticsearch']));
 
 	var decoder = new string_decoder('utf8');
@@ -144,9 +153,24 @@ function runNode(number, total) {
 
 	if(number == total - 1) {
 		io.emit('log', {"msg" : "All nodes running..."});
-		console.log('callback');
+		callback();
 	} else
-		runNode(++number, total);
+		runNode(++number, total, callback);
+};
+
+function createIndex(index) {
+	client	= new elastic.Client({
+  		host: HOST
+	});
+
+	client.indices.delete({
+		timeout: 30000,
+		masterTimeout: 30000,
+		index: INDEX
+	}, function(error, response, status) {
+		//callback();
+		console.log('done');
+	});
 };
 /*******************************************************************************/
 app.use(function(req, res, next) {
