@@ -11,10 +11,11 @@ var io = require('socket.io')(http);
 var ncp = require('ncp').ncp;
 var rimraf = require('rimraf');
 var mkdirp = require('mkdirp');
+var string_decoder = require('string_decoder').StringDecoder;
 
 var util = require('util');
-var exec = require('child_process').exec;
-var child = null;
+var child_process = require('child_process');
+var children = [];
 
 var SERVER_PORT = 3000;
 var ES_PORT = ':9200';
@@ -40,9 +41,6 @@ app.use(express.static(__dirname + '/public'));
 /*******************************************************************************/
 
 app.get('/', function(req, res) {
-	createNode('node_1', function() {
-		console.log('folder created');
-	});
 	res.render('index.ejs');
 });
 
@@ -101,30 +99,54 @@ function createNode(number, total) {
 
 			if(number == total - 1) {
 				io.emit('log', {"msg" : "All nodes created..."});
-				runNode(0, total);
+				installMarvel(0, total);
+				//runNode(0, total);
 			} else
 				createNode(++number, total);
 		}
 	});
 };
 
-function runNode(number, total) {
-	child = exec(NODE_DESTINATION + NODE_NAME + number + '/bin/elasticsearch',
-		function (error, stdout, stderr) {
-		    console.log('stdout: ' + stdout);
-		    console.log('stderr: ' + stderr);
-
-		    if (error != null)
-		      console.log('exec error: ' + error);
-		    
-	});
-	io.emit('log', {"msg" : NODE_NAME + number + " running..."});
+function installMarvel(number, total) {
+	var ps = child_process.exec(NODE_DESTINATION + NODE_NAME + number + '/bin/plugin -i elasticsearch/marvel/latest', function (error, stdout, stderr) {
+		if(error)
+			io.emit('log', {"msg" : '-------->' + error.stack});
+	 });
 	
-	/*if(number == total - 1) {
+	 ps.on('exit', function (code) {
+	 	io.emit('log', {"msg" : 'Marvel installed on ' + NODE_NAME + number});
+	 	if(number == total - 1) {
+			io.emit('log', {"msg" : "Marvel installed on all nodes..."});
+			runNode(0, total);
+		} else
+			installMarvel(++number, total);
+	 });
+};
+
+function runNode(number, total) {
+	children[number] = (child_process.spawn('sh', [NODE_DESTINATION + NODE_NAME + 0 + '/bin/elasticsearch']));
+
+	var decoder = new string_decoder('utf8');
+
+	children[number].stdout.on('data', function (data) {
+	  	io.emit('log', {"msg" : '-------->' + decoder.write(data)});
+	  	//io.emit('log', {"msg" : NODE_NAME + number + ' running...'});
+	});
+	
+	children[number].stderr.on('data', function (data) {
+	  	io.emit('log', {"msg" : '-------->' + decoder.write(data)});
+	  	//io.emit('log', {"msg" : NODE_NAME + number + ' caused an error...'});
+	});
+	
+	children[number].on('close', function (code) {
+	  	//io.emit('log', {"msg" : '-------->' + decoder.write(data)});
+	});
+
+	if(number == total - 1) {
 		io.emit('log', {"msg" : "All nodes running..."});
 		console.log('callback');
 	} else
-		runNode(++number, total);*/
+		runNode(++number, total);
 };
 /*******************************************************************************/
 app.use(function(req, res, next) {

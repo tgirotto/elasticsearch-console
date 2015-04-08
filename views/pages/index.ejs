@@ -14,7 +14,6 @@
         <br>
         <main>
           <div class="row">
-            <div class="col-md-4"></div>
             <div class="col-md-4">
               <form id="input_form" role="form" method="post" action="/index" enctype="multipart/form-data">
               <div class="input-group">
@@ -51,7 +50,7 @@
               <button type="submit" class="btn btn-primary">Index</button>
             </form>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-8">
               <div id="console" style="overflow-y: scroll; height:300px; border: 1px solid black;">
             </div>
           </div>
@@ -77,6 +76,8 @@
         <script type='text/javascript'>
           $("#input_form").submit(function(event) {
             event.preventDefault();
+
+            document.getElementById('console').innerHTML = '';
 
             var $form = $(this),
                 url = $form.attr('action');
