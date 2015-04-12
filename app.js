@@ -25,6 +25,9 @@ var NODE_SOURCE = './elasticsearch-1.5.0/';
 var NODE_DESTINATION = './nodes/';
 var NODE_NAME = 'node_';
 
+var INDEX = null;
+var TYPE = null;
+
 var client = new elastic.Client({host: HOST + ES_PORT});
 var counter = 0;
 ncp.limit = 16;
@@ -59,11 +62,17 @@ app.post('/kill', function(req, res) {
 
 /*******************************************************************************/
 function initialize(params) {
+	INDEX = params.index;
+	TYPE = params.type;
+
 	killAllNodes(function() {
 		flushOldNodes(NODE_DESTINATION, function() {
 			createNodeFolder(NODE_DESTINATION, function() {
 				createNode(0, params.node_number, function() {
-					io.emit('log', {"msg" : "Creating index"});
+					io.emit('log', {"msg" : "Creating index..."});
+					createIndex(function() {
+						indexContent(params.content_path);
+					});
 				});
 			});
 		});
@@ -123,7 +132,7 @@ function installMarvel(number, total, callback) {
 	 });
 	
 	 ps.on('exit', function (code) {
-	 	io.emit('log', {"msg" : 'Marvel installed on ' + NODE_NAME + number});
+	 	io.emit('log', {"msg" : 'Marvel installed on ' + NODE_NAME + number + '...'});
 	 	if(number == total - 1) {
 			io.emit('log', {"msg" : "Marvel installed on all nodes..."});
 			runNode(0, total, callback);
@@ -140,6 +149,14 @@ function runNode(number, total, callback) {
 	children[number].stdout.on('data', function (data) {
 	  	io.emit('log', {"msg" : '-------->' + decoder.write(data)});
 	  	//io.emit('log', {"msg" : NODE_NAME + number + ' running...'});
+
+	  	if(decoder.write(data).indexOf('started') != -1) {
+	  		if(number == total - 1) {
+				io.emit('log', {"msg" : "All nodes running..."});
+				callback();
+			} else
+				runNode(++number, total, callback);
+	  	}
 	});
 	
 	children[number].stderr.on('data', function (data) {
@@ -150,15 +167,10 @@ function runNode(number, total, callback) {
 	children[number].on('close', function (code) {
 	  	//io.emit('log', {"msg" : '-------->' + decoder.write(data)});
 	});
-
-	if(number == total - 1) {
-		io.emit('log', {"msg" : "All nodes running..."});
-		callback();
-	} else
-		runNode(++number, total, callback);
 };
 
-function createIndex(index) {
+function createIndex(callback) {
+	console.log('creating index');
 	client	= new elastic.Client({
   		host: HOST
 	});
@@ -168,10 +180,124 @@ function createIndex(index) {
 		masterTimeout: 30000,
 		index: INDEX
 	}, function(error, response, status) {
-		//callback();
-		console.log('done');
+		callback();
+		if(error != null)
+			console.log('An error occurre when creating the index');
+		else
+			io.emit('log', {"msg" : "Index created..."});	
 	});
 };
+
+function indexContent(path) {
+	fs.readFile(path, 'utf8', function(err, data) {
+	  	if (err) 
+	    	throw err;
+
+	  	var lines = extractLines(data);
+	  	var objects = extractObjects(lines);
+
+		processObjects(objects, function(size) {
+		    io.emit('log', {"msg" : "Content indexed..."});
+		   	process.exit();
+		});
+	});
+};
+
+function extractLines(data) {
+	io.emit('log', {"msg" : "Extracting lines..."});
+  	return data.split('\n');
+};
+
+function extractObjects(lines) {
+	io.emit('log', {"msg" : "Extracting objects..."});
+	var objects = [];
+
+	for(var i = 0; i < lines.length; i++) {
+		var temp = lines[i].split("\"///\"");
+
+		if(temp[12] == undefined) {
+			console.log('error at line: ', i);
+			continue;
+		}
+
+		objects.push({
+		  id: temp[0].substr(1, temp[0].length),
+		  sid: temp[1],
+		  serverid: temp[2],
+		  title: convertToQuery(temp[3]),
+		  singerid: convertToQuery(temp[4]),
+		  styleid: temp[5],
+		  tagid: temp[6],
+		  tracktime: temp[7],
+		  hotnum: temp[8],
+		  similarid: temp[9],
+		  status: temp[10],
+		  pubdate: temp[11],
+		  checked: temp[12].substr(0, temp[12].length - 1)
+		});
+
+	}
+
+	return objects;
+};
+
+function convertToQuery(string) {
+  if(string != undefined) {
+    var punctuationless = removePunctuation(string);
+    var temp = punctuationless.split(' ');
+    var name = '';
+
+    for(var j = 0; j < temp.length; j++)
+      name += temp[j] + '+';
+
+    return name.substr(0, name.length - 1);
+  } else
+    return '';
+};
+
+function removePunctuation(string) {
+  var punctRE = /[\u2000-\u206F\u2E00-\u2E7F\\'!"#\$%&\(\)\*\+,\-\.\/:;<=>\?@\[\]\^_`\{\|\}~]/g;
+  var spaceRE = /\s+/g;
+  var result = string.replace(punctRE, '').replace(spaceRE, ' ');
+  return result;
+};
+
+function processObjects(objects, callback) {
+	for(var i = 0; i < objects.length; i++) {
+		iteration(i, objects.length, objects[i], callback);
+	}
+};
+
+function iteration(number, size, input, callback) {
+	client.index({
+			index: INDEX,
+			type: TYPE,
+			id: number,
+			body: input
+		}, function (error, response) {
+			if(number % 1000 == 0)
+				io.emit('log', {"msg" : "1000 done..."});
+
+	  		if(number == size - 1) {
+	  			client.indices.refresh({
+	  				index: INDEX
+	  			}, function() {
+	  				io.emit('log', {"msg" : "Refreshed new index..."});
+	  				io.emit('log', {"msg" : "Process completed: check Marvel."});
+	  				callback();
+	  			});
+	  		}
+	});
+};
+
+function primaryShards(number) {
+
+};
+
+function replicaShards(number) {
+
+};
+
 /*******************************************************************************/
 app.use(function(req, res, next) {
     var err = new Error('Not Found');

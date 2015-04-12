@@ -18,12 +18,12 @@
               <form id="input_form" role="form" method="post" action="/index" enctype="multipart/form-data">
               <div class="input-group">
                 <span class="input-group-addon" id="basic-addon1">Index</span>
-                <input id="index" type="text" class="form-control" name="index" aria-describedby="basic-addon1">
+                <input id="index" type="text" class="form-control" name="index" aria-describedby="basic-addon1" value="music" disabled="true">
               </div>
               <br>
               <div class="input-group">
                 <span class="input-group-addon" id="basic-addon2">Type</span>
-                <input id="type" type="text" class="form-control" name="type" aria-describedby="basic-addon2">
+                <input id="type" type="text" class="form-control" name="type" aria-describedby="basic-addon2" value="track" disabled="track">
               </div>
               <br>
               <div class="input-group">
@@ -33,17 +33,17 @@
               <br>
               <div class="input-group">
                 <span class="input-group-addon" id="basic-addon4">Primary shards</span>
-                <input id="primary_shard_number" type="text" class="form-control" name="primary_shard_number" aria-describedby="basic-addon4">
+                <input id="primary_shard_number" type="text" class="form-control" name="primary_shard_number" aria-describedby="basic-addon4" disabled="true">
               </div>
               <br>
               <div class="input-group">
                 <span class="input-group-addon" id="basic-addon5">Replica shards</span>
-                <input id="replica_shard_number" type="text" class="form-control" name="replica_shard_number" aria-describedby="basic-addon5">
+                <input id="replica_shard_number" type="text" class="form-control" name="replica_shard_number" aria-describedby="basic-addon5" disabled="true">
               </div>
               <br>
               <div class="input-group">
                 <span class="input-group-addon" id="basic-addon6">Content path</span>
-                <input id="content_path" type="text" class="form-control" name="content_path" aria-describedby="basic-addon6">
+                <input id="content_path" type="text" class="form-control" name="content_path" aria-describedby="basic-addon6" value="/tmp/output.txt" disabled="true">
               </div>
               <br>
               <br>
@@ -51,7 +51,7 @@
             </form>
             </div>
             <div class="col-md-8">
-              <div id="console" style="overflow-y: scroll; height:300px; border: 1px solid black;">
+              <div id="console" style="overflow-y: scroll; height:400px; border: 1px solid black;">
             </div>
           </div>
         </main>
