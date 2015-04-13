@@ -4,6 +4,7 @@ var app = express();
 var logger = require('morgan');
 var bodyParser = require('body-parser');
 var elastic = require('elasticsearch');
+var request = require('request');
 
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
@@ -69,8 +70,7 @@ function initialize(params) {
 		flushOldNodes(NODE_DESTINATION, function() {
 			createNodeFolder(NODE_DESTINATION, function() {
 				createNode(0, params.node_number, function() {
-					io.emit('log', {"msg" : "Creating index..."});
-					createIndex(function() {
+					createIndex(params.primary_shard_number, params.replica_shard_number, function() {
 						indexContent(params.content_path);
 					});
 				});
@@ -169,8 +169,8 @@ function runNode(number, total, callback) {
 	});
 };
 
-function createIndex(callback) {
-	console.log('creating index');
+function createIndex(primary_shards, replica_shards, callback) {
+	io.emit('log', {"msg" : "Creating index..."});
 	client	= new elastic.Client({
   		host: HOST
 	});
@@ -180,11 +180,26 @@ function createIndex(callback) {
 		masterTimeout: 30000,
 		index: INDEX
 	}, function(error, response, status) {
-		callback();
-		if(error != null)
-			console.log('An error occurre when creating the index');
-		else
-			io.emit('log', {"msg" : "Index created..."});	
+		if(error != null) {
+			console.log('An error occurred while deleting old index...');
+		} else
+			io.emit('log', {"msg" : "Index created..."});
+
+		var params = JSON.parse('{"settings" : {"number_of_shards" : ' + primary_shards + ',"number_of_replicas" : ' + replica_shards + '}}');
+
+		request({ 
+			url: 'http://localhost:9200/' + INDEX + '/', 
+			method: 'PUT', 
+			json: params }, 
+			function(err, res, body) {
+				if(err == null) {
+					io.emit('log', {"msg" : body});
+					io.emit('log', {"msg" : "Index created..."});
+
+					callback();
+				} else
+					io.emit('log', {"msg" : "An error occurred while creating the index..."});
+		});
 	});
 };
 
@@ -275,27 +290,23 @@ function iteration(number, size, input, callback) {
 			id: number,
 			body: input
 		}, function (error, response) {
-			if(number % 1000 == 0)
-				io.emit('log', {"msg" : "1000 done..."});
+			if(error != null) {
+				io.emit('log', {"msg" : "An indexing error occurred..."});
+			} else {
+				if(number % 1000 == 0)
+					io.emit('log', {"msg" : "1000 done..."});
 
-	  		if(number == size - 1) {
-	  			client.indices.refresh({
-	  				index: INDEX
-	  			}, function() {
-	  				io.emit('log', {"msg" : "Refreshed new index..."});
-	  				io.emit('log', {"msg" : "Process completed: check Marvel."});
-	  				callback();
-	  			});
-	  		}
+		  		if(number == size - 1) {
+		  			client.indices.refresh({
+		  				index: INDEX
+		  			}, function (error, response) {
+		  				io.emit('log', {"msg" : "Refreshed new index..."});
+		  				io.emit('log', {"msg" : "Process completed: check Marvel."});
+		  				callback();
+		  			});
+		  		}
+			}
 	});
-};
-
-function primaryShards(number) {
-
-};
-
-function replicaShards(number) {
-
 };
 
 /*******************************************************************************/
