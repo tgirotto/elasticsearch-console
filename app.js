@@ -5,6 +5,7 @@ var logger = require('morgan');
 var bodyParser = require('body-parser');
 var elastic = require('elasticsearch');
 var request = require('request');
+var readline = require('line-by-line');
 
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
@@ -30,6 +31,7 @@ var INDEX = null;
 var TYPE = null;
 
 var client = new elastic.Client({host: HOST + ES_PORT});
+var rl = null;
 var counter = 0;
 ncp.limit = 16;
 
@@ -49,7 +51,6 @@ app.get('/', function(req, res) {
 });
 
 app.post('/index', function(req, res) {
-	console.log(req.body);
 	initialize(req.body);
 	io.emit('log', {"msg" : "Initializing..."});
 	res.json('ok');
@@ -181,9 +182,8 @@ function createIndex(primary_shards, replica_shards, callback) {
 		index: INDEX
 	}, function(error, response, status) {
 		if(error != null) {
-			console.log('An error occurred while deleting old index...');
-		} else
-			io.emit('log', {"msg" : "Index created..."});
+			console.log('An error occurred while deleting old index (maybe it never existed)...');
+		}
 
 		var params = JSON.parse('{"settings" : {"number_of_shards" : ' + primary_shards + ',"number_of_replicas" : ' + replica_shards + '}}');
 
@@ -193,67 +193,53 @@ function createIndex(primary_shards, replica_shards, callback) {
 			json: params }, 
 			function(err, res, body) {
 				if(err == null) {
-					io.emit('log', {"msg" : body});
 					io.emit('log', {"msg" : "Index created..."});
 
 					callback();
 				} else
-					io.emit('log', {"msg" : "An error occurred while creating the index..."});
+					io.emit('log', {"msg" : "An error occurred while creating new index..."});
 		});
 	});
 };
 
 function indexContent(path) {
-	fs.readFile(path, 'utf8', function(err, data) {
-	  	if (err) 
-	    	throw err;
+	rl =  new readline(path);
+	rl.on('line', function(line) {
+	    counter++;
+	    rl.pause();
+	    processObject(counter, extractObject(line));
+  	});
 
-	  	var lines = extractLines(data);
-	  	var objects = extractObjects(lines);
+	rl.on('end', function() {
+	    rl.close();
+	    client.indices.refresh({index:INDEX}, function(err, response, status) {
+	    	if(err == null)
+	        	io.emit('log', {"msg" : "Refreshing index..."});
 
-		processObjects(objects, function(size) {
-		    io.emit('log', {"msg" : "Content indexed..."});
-		   	process.exit();
-		});
+	      process.exit();
+	    })
 	});
 };
 
-function extractLines(data) {
-	io.emit('log', {"msg" : "Extracting lines..."});
-  	return data.split('\n');
-};
-
-function extractObjects(lines) {
-	io.emit('log', {"msg" : "Extracting objects..."});
-	var objects = [];
-
-	for(var i = 0; i < lines.length; i++) {
-		var temp = lines[i].split("\"///\"");
-
-		if(temp[12] == undefined) {
-			console.log('error at line: ', i);
-			continue;
-		}
-
-		objects.push({
-		  id: temp[0].substr(1, temp[0].length),
-		  sid: temp[1],
-		  serverid: temp[2],
-		  title: convertToQuery(temp[3]),
-		  singerid: convertToQuery(temp[4]),
-		  styleid: temp[5],
-		  tagid: temp[6],
-		  tracktime: temp[7],
-		  hotnum: temp[8],
-		  similarid: temp[9],
-		  status: temp[10],
-		  pubdate: temp[11],
-		  checked: temp[12].substr(0, temp[12].length - 1)
-		});
-
-	}
-
-	return objects;
+function extractObject(line) {
+  var temp = line.replace(/\"/g, '').split("///");
+  var object = {
+    id: temp[0],
+    sid: temp[1],
+    serverid: temp[2],
+    title: convertToQuery(temp[3]),
+    singerid: convertToQuery(temp[4]),
+    styleid: temp[5],
+    tagid: temp[6],
+    tracktime: temp[7],
+    hotnum: temp[8],
+    similarid: temp[9],
+    status: temp[10],
+    pubdate: temp[11],
+    checked: temp[12]
+  };
+   
+  return object;
 };
 
 function convertToQuery(string) {
@@ -277,38 +263,18 @@ function removePunctuation(string) {
   return result;
 };
 
-function processObjects(objects, callback) {
-	for(var i = 0; i < objects.length; i++) {
-		iteration(i, objects.length, objects[i], callback);
-	}
-};
-
-function iteration(number, size, input, callback) {
+function processObject(number, input) {
 	client.index({
 			index: INDEX,
 			type: TYPE,
 			id: number,
 			body: input
 		}, function (error, response) {
-			if(error != null) {
-				io.emit('log', {"msg" : "An indexing error occurred..."});
-			} else {
-				if(number % 1000 == 0)
-					io.emit('log', {"msg" : "1000 done..."});
-
-		  		if(number == size - 1) {
-		  			client.indices.refresh({
-		  				index: INDEX
-		  			}, function (error, response) {
-		  				io.emit('log', {"msg" : "Refreshed new index..."});
-		  				io.emit('log', {"msg" : "Process completed: check Marvel."});
-		  				callback();
-		  			});
-		  		}
-			}
+		    if(counter % 1000 == 0) 
+		        io.emit('log', {"msg" : "1000 done..."});
+		    rl.resume();
 	});
 };
-
 /*******************************************************************************/
 app.use(function(req, res, next) {
     var err = new Error('Not Found');
