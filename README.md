@@ -1,5 +1,5 @@
 # ES console
-A testing console for elasticsearch.
+A test console for elasticsearch.
 
 
 ## SETUP
